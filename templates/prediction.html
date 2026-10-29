@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f6f9ff" />
+    <title>News Analysis | Fake News Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --blue: #2563eb;
+        --blue-d: #1d4ed8;
+        --sky: #0ea5e9;
+        --ink: #0b1530;
+        --text: #172033;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --soft: #eff6ff;
+        --green: #22c55e;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        font-family: "Inter", system-ui, sans-serif;
+        color: var(--text);
+        background: #f6f9ff;
+      }
+      .bg {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .bg i {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(70px);
+        opacity: 0.55;
+        animation: drift 18s ease-in-out infinite alternate;
+      }
+      .bg i:nth-child(1) {
+        width: 46vmax;
+        height: 46vmax;
+        left: -14vmax;
+        top: -16vmax;
+        background: #bfdbfe;
+      }
+      .bg i:nth-child(2) {
+        width: 38vmax;
+        height: 38vmax;
+        right: -12vmax;
+        bottom: -10vmax;
+        background: #bae6fd;
+        animation-delay: -6s;
+      }
+      .bg i:nth-child(3) {
+        width: 30vmax;
+        height: 30vmax;
+        right: 20%;
+        top: -14vmax;
+        background: #c7d2fe;
+        animation-delay: -11s;
+      }
+      .bg::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(
+          rgba(37, 99, 235, 0.14) 1px,
+          transparent 1px
+        );
+        background-size: 26px 26px;
+        mask-image: radial-gradient(
+          ellipse at 50% 40%,
+          #000 20%,
+          transparent 75%
+        );
+        -webkit-mask-image: radial-gradient(
+          ellipse at 50% 40%,
+          #000 20%,
+          transparent 75%
+        );
+      }
+      @keyframes drift {
+        to {
+          transform: translate3d(6vmax, 4vmax, 0) scale(1.12);
+        }
+      }
+
+      .progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 3px;
+        width: 100%;
+        z-index: 60;
+        transform-origin: 0 50%;
+        transform: scaleX(0);
+        background: linear-gradient(90deg, var(--blue), var(--sky));
+      }
+      .progress.run {
+        animation: load 1s var(--ease) forwards;
+      }
+      .progress.busy {
+        animation: busy 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+        opacity: 1;
+      }
+      @keyframes load {
+        0% {
+          transform: scaleX(0);
+          opacity: 1;
+        }
+        80% {
+          transform: scaleX(1);
+          opacity: 1;
+        }
+        100% {
+          transform: scaleX(1);
+          opacity: 0;
+        }
+      }
+      @keyframes busy {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(0.92);
+        }
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: calc(env(safe-area-inset-top) + 10px) 0 0;
+      }
+      .navbar {
+        width: min(1600px, 92%);
+        margin: auto;
+        min-height: 58px;
+        padding: 0 10px 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(18px) saturate(1.6);
+        -webkit-backdrop-filter: blur(18px) saturate(1.6);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        transition:
+          box-shadow 0.3s,
+          background 0.3s;
+      }
+      header.stuck .navbar {
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.1);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+      }
+      .brand-icon {
+        position: relative;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 11px;
+        color: #fff;
+        overflow: hidden;
+        background: linear-gradient(135deg, var(--blue), var(--sky));
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+        transition: transform 0.4s var(--ease);
+      }
+      .brand-icon::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          115deg,
+          transparent 35%,
+          rgba(255, 255, 255, 0.55) 50%,
+          transparent 65%
+        );
+        transform: translateX(-120%);
+        animation: shine 4.5s 1.2s infinite;
+      }
+      .brand:hover .brand-icon {
+        transform: rotate(-8deg) scale(1.06);
+      }
+      .brand-icon svg {
+        width: 20px;
+        height: 20px;
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes shine {
+        0%,
+        60% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(120%);
+        }
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 13px;
+        background: rgba(241, 245, 249, 0.8);
+      }
+      nav a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 10px;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        transition:
+          color 0.25s,
+          background 0.25s,
+          box-shadow 0.25s;
+      }
+      nav a svg {
+        width: 15px;
+        height: 15px;
+      }
+      nav a:hover {
+        color: var(--blue);
+      }
+      nav a:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.75);
+      }
+      nav a.active svg {
+        animation: nudge 0.6s var(--ease);
+      }
+      @keyframes nudge {
+        from {
+          transform: scale(0.6) rotate(-20deg);
+        }
+      }
+      nav a.active {
+        color: var(--blue);
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 3px solid #93c5fd;
+        outline-offset: 3px;
+        border-radius: 10px;
+      }
+
+      main {
+        flex: 1 0 auto;
+        width: min(1080px, 92%);
+        margin: 0 auto;
+        padding: clamp(18px, 3.5vh, 40px) 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .intro {
+        margin: 0 auto clamp(18px, 3vh, 30px);
+        text-align: center;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding: 7px 13px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        color: var(--blue-d);
+        background: rgba(239, 246, 255, 0.9);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .eyebrow svg {
+        width: 14px;
+        height: 14px;
+        animation: turn 10s linear infinite;
+      }
+      @keyframes turn {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      h1 {
+        margin-bottom: 12px;
+        color: var(--ink);
+        font-size: clamp(30px, 4.4vw, 54px);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1.06;
+      }
+      h1 span {
+        background: linear-gradient(
+          100deg,
+          var(--blue),
+          var(--sky),
+          var(--blue)
+        );
+        background-size: 220% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: flow 6s linear infinite;
+      }
+      @keyframes flow {
+        to {
+          background-position: -220% 0;
+        }
+      }
+      .intro p {
+        max-width: 600px;
+        margin: auto;
+        color: var(--muted);
+        font-size: clamp(13px, 1.3vw, 15px);
+        line-height: 1.7;
+      }
+
+      .workspace {
+        position: relative;
+        display: grid;
+        grid-template-columns: 0.8fr 1.2fr;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        border-radius: 28px;
+        background: #fff;
+        box-shadow:
+          0 30px 70px rgba(15, 23, 42, 0.12),
+          0 8px 24px rgba(37, 99, 235, 0.06);
+      }
+      .sidebar {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 26px;
+        padding: clamp(22px, 3vw, 36px);
+        color: #fff;
+        overflow: hidden;
+        background: linear-gradient(145deg, #0f1d4d, #1d4ed8 70%, #0284c7);
+      }
+      .sidebar::before,
+      .sidebar::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+      .sidebar::before {
+        width: 260px;
+        height: 260px;
+        right: -90px;
+        top: -90px;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.22),
+          transparent 70%
+        );
+        animation: breathe 7s ease-in-out infinite;
+      }
+      .sidebar::after {
+        width: 220px;
+        height: 220px;
+        left: -80px;
+        bottom: -80px;
+        background: radial-gradient(
+          circle,
+          rgba(56, 189, 248, 0.4),
+          transparent 70%
+        );
+        animation: breathe 9s -3s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        50% {
+          transform: scale(1.25);
+        }
+      }
+      .sidebar > * {
+        position: relative;
+        z-index: 1;
+      }
+      .sidebar-icon {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        margin-bottom: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(6px);
+      }
+      .sidebar-icon svg {
+        width: 24px;
+        height: 24px;
+      }
+      .sidebar h2 {
+        margin-bottom: 10px;
+        font-size: clamp(20px, 2vw, 24px);
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+      }
+      .sidebar p {
+        color: #dbeafe;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .step-list {
+        position: relative;
+        display: grid;
+        gap: 18px;
+      }
+      .step-list::before {
+        content: "";
+        position: absolute;
+        left: 14px;
+        top: 14px;
+        bottom: 14px;
+        width: 1px;
+        background: linear-gradient(
+          rgba(255, 255, 255, 0.5),
+          rgba(255, 255, 255, 0.1)
+        );
+      }
+      .step {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .step-number {
+        display: grid;
+        flex: 0 0 29px;
+        place-items: center;
+        width: 29px;
+        height: 29px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+        background: #1e40af;
+        font-size: 11px;
+        font-weight: 700;
+        transition:
+          background 0.3s,
+          color 0.3s,
+          transform 0.4s var(--ease);
+      }
+      .step:hover .step-number {
+        background: #fff;
+        color: var(--blue-d);
+        transform: scale(1.12);
+      }
+      .step strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 13px;
+      }
+      .step small {
+        color: #dbeafe;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .form-panel {
+        min-width: 0;
+        align-self: center;
+        padding: clamp(22px, 3vw, 38px);
+      }
+      .form-heading {
+        margin-bottom: 20px;
+      }
+      .form-heading h2 {
+        margin-bottom: 6px;
+        color: var(--ink);
+        font-size: clamp(20px, 2vw, 24px);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .form-heading p {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      label {
+        display: block;
+        margin-bottom: 9px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .field {
+        position: relative;
+        border-radius: 16px;
+        padding: 2px;
+        background: linear-gradient(135deg, #cbd5e1, #cbd5e1);
+        transition:
+          background 0.3s,
+          box-shadow 0.3s;
+      }
+      .field:focus-within {
+        background: linear-gradient(135deg, var(--blue), var(--sky));
+        box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.12);
+      }
+      .field.busy {
+        background: conic-gradient(
+          from var(--a, 0deg),
+          var(--sky),
+          var(--blue),
+          #c7d2fe,
+          var(--sky)
+        );
+        animation: spin 1.4s linear infinite;
+      }
+      @property --a {
+        syntax: "<angle>";
+        inherits: false;
+        initial-value: 0deg;
+      }
+      @keyframes spin {
+        to {
+          --a: 360deg;
+        }
+      }
+      textarea {
+        display: block;
+        width: 100%;
+        height: clamp(120px, 20vh, 170px);
+        resize: none;
+        padding: 15px 16px;
+        border: 0;
+        border-radius: 14px;
+        outline: none;
+        background: #f8fafc;
+        color: var(--ink);
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.65;
+        transition: background 0.3s;
+      }
+      textarea::placeholder {
+        color: #94a3b8;
+      }
+      textarea:focus,
+      .field.busy textarea {
+        background: #fff;
+      }
+      .meter {
+        height: 3px;
+        margin-top: 10px;
+        border-radius: 3px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      .meter i {
+        display: block;
+        height: 100%;
+        width: 100%;
+        transform-origin: 0 50%;
+        transform: scaleX(0);
+        border-radius: 3px;
+        background: linear-gradient(90deg, var(--blue), var(--sky));
+        transition: transform 0.3s var(--ease);
+      }
+      .field-note {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+        color: #94a3b8;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      #character-count {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .submit-button {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 50px;
+        margin-top: 18px;
+        border: none;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--blue), var(--blue-d));
+        color: #fff;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+        transition:
+          transform 0.3s var(--ease),
+          box-shadow 0.3s,
+          opacity 0.3s;
+        will-change: transform;
+      }
+      .submit-button::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          115deg,
+          transparent 30%,
+          rgba(255, 255, 255, 0.35) 50%,
+          transparent 70%
+        );
+        transform: translateX(-130%);
+        transition: transform 0.7s var(--ease);
+      }
+      .submit-button:hover::before {
+        transform: translateX(130%);
+      }
+      .submit-button:hover {
+        box-shadow: 0 16px 32px rgba(37, 99, 235, 0.38);
+      }
+      .submit-button:active {
+        transform: scale(0.98);
+      }
+      .submit-button svg {
+        width: 18px;
+        height: 18px;
+        transition: transform 0.3s var(--ease);
+      }
+      .submit-button:hover svg {
+        transform: translateX(4px);
+      }
+      .submit-button:disabled {
+        opacity: 0.85;
+        cursor: wait;
+      }
+      .spinner {
+        width: 17px;
+        height: 17px;
+        border: 2.5px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: rot 0.7s linear infinite;
+      }
+      @keyframes rot {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .result {
+        display: none;
+        position: relative;
+        margin-top: 16px;
+        padding: 16px 18px 16px 20px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .result-fake,
+      .result-real,
+      .result-other {
+        display: block;
+        animation: resultIn 0.7s var(--ease) both;
+      }
+      @keyframes resultIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px) scale(0.97);
+        }
+      }
+      .result::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: currentColor;
+        opacity: 0.7;
+      }
+      .result-fake {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      .result-real {
+        color: #166534;
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+      .result-other {
+        color: #334155;
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+      .result-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .result-badge {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+        border-radius: 12px;
+        background: currentColor;
+      }
+      .result-badge svg {
+        width: 20px;
+        height: 20px;
+        color: #fff;
+      }
+      .result-fake .result-badge {
+        animation: shake 0.6s 0.3s;
+      }
+      .result-real .result-badge svg path {
+        stroke-dasharray: 30;
+        stroke-dashoffset: 30;
+        animation: draw 0.6s 0.35s forwards;
+      }
+      @keyframes shake {
+        20%,
+        60% {
+          transform: translateX(-4px);
+        }
+        40%,
+        80% {
+          transform: translateX(4px);
+        }
+      }
+      @keyframes draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      .result-label {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 11px;
+        font-weight: 700;
+        opacity: 0.75;
+      }
+      .result h3 {
+        font-size: 17px;
+        font-weight: 800;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+      }
+      .result p {
+        margin-bottom: 6px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .result small {
+        display: block;
+        font-size: 11px;
+        line-height: 1.5;
+        opacity: 0.85;
+      }
+      .disclaimer {
+        margin-top: 14px;
+        color: #94a3b8;
+        font-size: 11px;
+        line-height: 1.6;
+        text-align: center;
+      }
+
+      footer {
+        flex: 0 0 auto;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .footer-inner {
+        width: min(1600px, 92%);
+        margin: 0 auto 14px;
+        min-height: 52px;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(12px);
+        color: #94a3b8;
+        font-size: 12px;
+      }
+      .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #475569;
+        font-weight: 600;
+      }
+      .footer-brand svg {
+        width: 16px;
+        height: 16px;
+        color: var(--blue);
+      }
+      .footer-links {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .footer-links a {
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 600;
+        transition:
+          color 0.2s,
+          background 0.2s;
+      }
+      .footer-links a:hover {
+        color: var(--blue);
+        background: var(--soft);
+      }
+
+      .cursor-dot,
+      .cursor-ring {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        pointer-events: none;
+        border-radius: 50%;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .cursor-dot {
+        width: 7px;
+        height: 7px;
+        margin: -3.5px 0 0 -3.5px;
+        background: var(--blue);
+      }
+      .cursor-ring {
+        width: 38px;
+        height: 38px;
+        margin: -19px 0 0 -19px;
+        border: 1.5px solid rgba(37, 99, 235, 0.5);
+        transition:
+          opacity 0.3s,
+          width 0.3s var(--ease),
+          height 0.3s var(--ease),
+          margin 0.3s var(--ease),
+          background 0.3s,
+          border-color 0.3s;
+      }
+      .cursor-ring.hot {
+        width: 60px;
+        height: 60px;
+        margin: -30px 0 0 -30px;
+        background: rgba(37, 99, 235, 0.08);
+        border-color: rgba(37, 99, 235, 0.8);
+      }
+      .cursor-ring.down {
+        width: 28px;
+        height: 28px;
+        margin: -14px 0 0 -14px;
+        background: rgba(37, 99, 235, 0.18);
+      }
+      html.has-cursor,
+      html.has-cursor *:not(textarea) {
+        cursor: none !important;
+      }
+      html.has-cursor.moved .cursor-dot,
+      html.has-cursor.moved .cursor-ring {
+        opacity: 1;
+      }
+      html.has-cursor.typing .cursor-dot,
+      html.has-cursor.typing .cursor-ring {
+        opacity: 0;
+      }
+
+      .reveal {
+        opacity: 0;
+        transform: translateY(22px);
+        animation: rise 0.9s var(--ease) forwards;
+        animation-delay: calc(var(--d, 0) * 1ms);
+      }
+      @keyframes rise {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .pop {
+        opacity: 0;
+        transform: scale(0.96) translateY(24px);
+        animation: pop 1s var(--ease) forwards;
+        animation-delay: calc(var(--d, 0) * 1ms);
+      }
+      @keyframes pop {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @media (max-width: 800px) {
+        .workspace {
+          display: block;
+          border-radius: 22px;
+        }
+        .sidebar {
+          display: none;
+        }
+        .form-panel {
+          padding: clamp(18px, 5vw, 28px);
+        }
+        textarea {
+          height: clamp(120px, 22vh, 170px);
+          font-size: 16px;
+        }
+      }
+      @media (max-width: 600px) {
+        .navbar {
+          min-height: 52px;
+          border-radius: 16px;
+        }
+        .brand {
+          font-size: 13px;
+          gap: 8px;
+        }
+        .brand-icon {
+          width: 32px;
+          height: 32px;
+          flex-basis: 32px;
+        }
+        nav a {
+          padding: 8px 11px;
+          font-size: 12px;
+        }
+        nav a svg {
+          display: none;
+        }
+        .footer-inner {
+          flex-direction: column;
+          justify-content: center;
+          padding: 12px;
+          gap: 6px;
+          text-align: center;
+        }
+      }
+      @media (max-width: 380px) {
+        .brand span {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+        .reveal,
+        .pop {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="progress" id="progress"></div>
+    <div class="bg"><i></i><i></i><i></i></div>
+    <div class="cursor-ring" id="ring"></div>
+    <div class="cursor-dot" id="dot"></div>
+
+    <header id="top">
+      <div class="navbar">
+        <a href="/" class="brand">
+          <div class="brand-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <span
+            >Fake News Detection Analysis using Python Machine Learning</span
+          >
+        </a>
+        <nav>
+          <a href="/">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 11l9-8 9 8" />
+              <path d="M5 10v10h14V10" />
+            </svg>
+            Home
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div class="eyebrow reveal" style="--d: 80">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <path
+              d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"
+            />
+            <circle cx="12" cy="12" r="5" />
+          </svg>
+          Machine Learning Project
+        </div>
+        <h1 class="reveal" style="--d: 180">
+          Analyse the News.<br /><span>Question the Source.</span>
+        </h1>
+        <p class="reveal" style="--d: 280">
+          Misinformation can spread rapidly across digital platforms. Use this
+          machine learning system to analyse news text and obtain a
+          model-generated classification.
+        </p>
+      </section>
+
+      <section class="workspace pop" style="--d: 380">
+        <aside class="sidebar">
+          <div>
+            <div class="sidebar-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 4h16v16H4z" />
+                <path d="M8 8h8M8 12h8M8 16h5" />
+              </svg>
+            </div>
+            <h2>Understand your news</h2>
+            <p>
+              Submit a headline or news statement for analysis by the trained
+              machine learning model.
+            </p>
+          </div>
+          <div class="step-list">
+            <div class="step">
+              <div class="step-number">1</div>
+              <div>
+                <strong>Enter text</strong
+                ><small>Paste a news headline or statement.</small>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">2</div>
+              <div>
+                <strong>Analyse</strong
+                ><small>Submit the text to the model.</small>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">3</div>
+              <div>
+                <strong>View result</strong
+                ><small>Review the predicted classification.</small>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="form-panel">
+          <div class="form-heading">
+            <h2>News analysis</h2>
+            <p>Enter the news content you want the model to classify.</p>
+          </div>
+
+          <form action="/prediction" method="POST" id="prediction-form">
+            <label for="news">News headline or statement</label>
+            <div class="field" id="field">
+              <textarea
+                id="news"
+                name="news"
+                placeholder="Paste or type a news headline here..."
+                aria-describedby="field-note"
+                required
+              ></textarea>
+            </div>
+            <div class="meter"><i id="meter"></i></div>
+            <div class="field-note" id="field-note">
+              <span>Use clear, complete text for analysis.</span>
+              <span id="character-count" aria-live="polite">0 characters</span>
+            </div>
+
+            <button type="submit" class="submit-button" id="submit-button">
+              Analyse News
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M5 12h14m-6-6 6 6-6 6" />
+              </svg>
+            </button>
+          </form>
+
+          <div id="result-slot">
+            {% if prediction_text %} {% set result = prediction_text | lower %}
+            {% if 'fake' in result %} {% set result_class = 'result-fake' %} {%
+            set result_title = '⚠️ Fake News Detected' %} {% elif 'true' in
+            result or 'real' in result %} {% set result_class = 'result-real' %}
+            {% set result_title = '✓ Classified as Real News' %} {% else %} {%
+            set result_class = 'result-other' %} {% set result_title = 'Analysis
+            Complete' %} {% endif %}
+
+            <div
+              class="result {{ result_class }}"
+              role="status"
+              aria-live="polite"
+            >
+              <div class="result-head">
+                <div class="result-badge">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    {% if 'fake' in result %}
+                    <path d="M12 8v5M12 17h.01" />
+                    {% elif 'real' in result %}
+                    <path d="m6 12 4 4 8-8" />
+                    {% else %}
+                    <path d="M5 12h14" />
+                    {% endif %}
+                  </svg>
+                </div>
+                <div>
+                  <span class="result-label">Analysis Result</span>
+                  <h3>{{ result_title }}</h3>
+                </div>
+              </div>
+              <small
+                >This is a machine learning prediction, not a verified
+                fact-check. Verify important claims using reliable
+                sources.</small
+              >
+            </div>
+            {% endif %}
+          </div>
+
+          <p class="disclaimer">
+            Predictions depend on the model and its training data. Always verify
+            important news through reliable sources.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const root = document.documentElement;
+      const fine = matchMedia("(hover:hover) and (pointer:fine)").matches;
+      const form = document.getElementById("prediction-form");
+      const news = document.getElementById("news");
+      const count = document.getElementById("character-count");
+      const button = document.getElementById("submit-button");
+      const field = document.getElementById("field");
+      const meter = document.getElementById("meter");
+      const progress = document.getElementById("progress");
+      const header = document.getElementById("top");
+
+      progress.classList.add("run");
+
+      const onScroll = () => header.classList.toggle("stuck", scrollY > 8);
+      addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+
+      news.addEventListener("input", () => {
+        const length = news.value.length;
+        count.textContent = `${length} character${length === 1 ? "" : "s"}`;
+        meter.style.transform = `scaleX(${Math.min(length / 280, 1)})`;
+      });
+
+      news.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter")
+          form.requestSubmit();
+      });
+
+      const slot = document.getElementById("result-slot");
+      const idle = button.innerHTML;
+
+      const finish = () => {
+        button.disabled = false;
+        button.innerHTML = idle;
+        field.classList.remove("busy");
+        progress.classList.remove("busy");
+        void progress.offsetWidth;
+        progress.classList.add("run");
+      };
+
+      form.addEventListener("submit", async (event) => {
+        if (!news.value.trim()) {
+          event.preventDefault();
+          news.setCustomValidity("Please enter a news headline or statement.");
+          news.reportValidity();
+          news.setCustomValidity("");
+          return;
+        }
+
+        event.preventDefault();
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner"></span>Analysing...';
+        field.classList.add("busy");
+        progress.classList.remove("run");
+        void progress.offsetWidth;
+        progress.classList.add("busy");
+
+        try {
+          const res = await fetch(form.action, {
+            method: "POST",
+            body: new FormData(form),
+            headers: { "X-Requested-With": "fetch" },
+          });
+          if (!res.ok) throw new Error();
+          const doc = new DOMParser().parseFromString(
+            await res.text(),
+            "text/html",
+          );
+          const next = doc.getElementById("result-slot");
+          if (!next) throw new Error();
+          slot.innerHTML = next.innerHTML;
+        } catch (err) {
+          slot.innerHTML = "";
+          const box = document.createElement("div");
+          box.className = "result result-other";
+          box.setAttribute("role", "status");
+          box.innerHTML =
+            '<span class="result-label">Analysis Result</span><h3>Request failed</h3>';
+          const msg = document.createElement("p");
+          msg.textContent = "Could not reach the server. Please try again.";
+          box.appendChild(msg);
+          slot.appendChild(box);
+        } finally {
+          finish();
+          const shown = slot.querySelector(".result");
+          if (shown)
+            shown.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+
+      const result = document.querySelector(".result");
+      if (result)
+        result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+      if (fine) {
+        root.classList.add("has-cursor");
+        const dot = document.getElementById("dot");
+        const ring = document.getElementById("ring");
+        let x = 0,
+          y = 0,
+          rx = 0,
+          ry = 0;
+
+        addEventListener("pointermove", (e) => {
+          x = e.clientX;
+          y = e.clientY;
+          root.classList.add("moved");
+          dot.style.transform = `translate3d(${x}px,${y}px,0)`;
+        });
+
+        const loop = () => {
+          rx += (x - rx) * 0.18;
+          ry += (y - ry) * 0.18;
+          ring.style.transform = `translate3d(${rx}px,${ry}px,0)`;
+          requestAnimationFrame(loop);
+        };
+        loop();
+
+        document.querySelectorAll("a,button,.step").forEach((el) => {
+          el.addEventListener("pointerenter", () => ring.classList.add("hot"));
+          el.addEventListener("pointerleave", () =>
+            ring.classList.remove("hot"),
+          );
+        });
+        news.addEventListener("pointerenter", () =>
+          root.classList.add("typing"),
+        );
+        news.addEventListener("pointerleave", () =>
+          root.classList.remove("typing"),
+        );
+        addEventListener("pointerdown", () => ring.classList.add("down"));
+        addEventListener("pointerup", () => ring.classList.remove("down"));
+        document.addEventListener("mouseleave", () =>
+          root.classList.remove("moved"),
+        );
+
+        if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          button.addEventListener("pointermove", (e) => {
+            const r = button.getBoundingClientRect();
+            button.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.06}px,${(e.clientY - r.top - r.height / 2) * 0.2}px)`;
+          });
+          button.addEventListener(
+            "pointerleave",
+            () => (button.style.transform = ""),
+          );
+        }
+      }
+    </script>
+  </body>
+</html>
